@@ -19,7 +19,7 @@ jobs:
       - name: submodules-init
         uses: snickerbockers/submodules-init@v4
       - name: Setup with Gradle
-        run: ./gradlew bulid
+        run: ./gradlew build
       - name: Build with Gradle
         run: ./gradlew adapt
       - name: Archive artifacts (Build)
