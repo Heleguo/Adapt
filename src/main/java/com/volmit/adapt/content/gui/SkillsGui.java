@@ -42,7 +42,8 @@ public class SkillsGui {
         w.setTag("/");
         w.setDecorator((window, position, row) -> new UIElement("bg")
                 .setName(" ")
-                .setMaterial(new MaterialBlock(Material.BLACK_STAINED_GLASS_PANE)));
+                .setMaterial(new MaterialBlock(Material.BLACK_STAINED_GLASS_PANE))
+                .setModel(CustomModel.get(Material.BLACK_STAINED_GLASS_PANE, "snippets", "gui", "background")));
 
         AdaptPlayer adaptPlayer = Adapt.instance.getAdaptServer().getPlayer(player);
         int ind = 0;
@@ -51,7 +52,7 @@ public class SkillsGui {
             return;
         }
 
-        if (adaptPlayer.getData().getSkillLines().size() > 0) {
+        if (!adaptPlayer.getData().getSkillLines().isEmpty()) {
             for (PlayerSkillLine i : adaptPlayer.getData().getSkillLines().sortV()) {
                 if (i.getRawSkill(adaptPlayer).hasBlacklistPermission(adaptPlayer.getPlayer(), i.getRawSkill(adaptPlayer)) || i.getLevel() < 0) {
                     continue;
@@ -65,6 +66,7 @@ public class SkillsGui {
                 Skill<?> sk = Adapt.instance.getAdaptServer().getSkillRegistry().getSkill(i.getLine());
                 w.setElement(pos, row, new UIElement("skill-" + sk.getName())
                         .setMaterial(new MaterialBlock(sk.getIcon()))
+                        .setModel(sk.getModel())
                         .setName(sk.getDisplayName(i.getLevel()))
                         .setProgress(1D)
                         .addLore(C.ITALIC + "" + C.GRAY + sk.getDescription())
@@ -80,14 +82,16 @@ public class SkillsGui {
                 if (w.getElement(unlearnAllPos, unlearnAllRow) != null) unlearnAllRow++;
                 w.setElement(unlearnAllPos, unlearnAllRow, new UIElement("unlearn-all")
                         .setMaterial(new MaterialBlock(Material.BARRIER))
+                        .setModel(CustomModel.get(Material.BARRIER, "snippets", "gui", "unlearnall"))
                         .setName("" + C.RESET + C.GRAY + Localizer.dLocalize("snippets", "gui", "unlearnall")
                                 + (AdaptConfig.get().isHardcoreNoRefunds()
                                 ? " " + C.DARK_RED + "" + C.BOLD + Localizer.dLocalize("snippets", "adaptmenu", "norefunds")
                                 : ""))
                         .onLeftClick((e) -> {
                             Adapt.instance.getAdaptServer().getSkillRegistry().getSkills().forEach(skill -> skill.getAdaptations().forEach(adaptation -> adaptation.unlearn(player, 1, false)));
-                            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_NETHER_GOLD_ORE_PLACE, 0.7f, 1.355f);
-                            player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.4f, 0.755f);
+                            SoundPlayer spw = SoundPlayer.of(player.getWorld());
+                            spw.play(player.getLocation(), Sound.BLOCK_NETHER_GOLD_ORE_PLACE, 0.7f, 1.355f);
+                            spw.play(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.4f, 0.755f);
                             w.close();
                             if (AdaptConfig.get().getLearnUnlearnButtonDelayTicks() != 0) {
                                 player.sendTitle(" ", C.GRAY + Localizer.dLocalize("snippets", "gui", "unlearnedall"), 1, 5, 11);

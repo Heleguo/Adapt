@@ -21,7 +21,7 @@ package com.volmit.adapt.content.adaptation.architect;
 import com.volmit.adapt.Adapt;
 import com.volmit.adapt.api.adaptation.SimpleAdaptation;
 import com.volmit.adapt.util.*;
-import com.volmit.adapt.util.reflect.enums.Particles;
+import com.volmit.adapt.util.reflect.registries.Particles;
 import lombok.NoArgsConstructor;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -41,6 +41,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.bukkit.entity.ItemFrame;
+import org.bukkit.entity.Painting;
 
 public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Config> {
     private static final BlockData AIR = Material.AIR.createBlockData();
@@ -69,7 +72,9 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
 
     @Override
     public void addStats(int level, Element v) {
-        v.addLore(C.GREEN + Localizer.dLocalize("architect", "foundation", "lore1") + (getBlockPower(getLevelPercent(level))) + C.GRAY + " " + Localizer.dLocalize("architect", "foundation", "lore2"));
+        v.addLore(C.GREEN + Localizer.dLocalize("architect", "foundation", "lore1")
+                + (getBlockPower(getLevelPercent(level))) + C.GRAY + " "
+                + Localizer.dLocalize("architect", "foundation", "lore2"));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -120,7 +125,7 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         blockPower.put(p, power);
     }
 
-    //prevent piston from moving blocks // Dupe fix
+    // prevent piston from moving blocks // Dupe fix
     @EventHandler(priority = EventPriority.HIGHEST)
     public void on(BlockPistonExtendEvent e) {
         if (e.isCancelled()) {
@@ -134,7 +139,7 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         });
     }
 
-    //prevent piston from pulling blocks // Dupe fix
+    // prevent piston from pulling blocks // Dupe fix
     @EventHandler(priority = EventPriority.HIGHEST)
     public void on(BlockPistonRetractEvent e) {
         if (e.isCancelled()) {
@@ -148,7 +153,7 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         });
     }
 
-    //prevent TNT from destroying blocks // Dupe fix
+    // prevent TNT from destroying blocks // Dupe fix
     @EventHandler(priority = EventPriority.HIGHEST)
     public void on(BlockExplodeEvent e) {
         if (e.isCancelled()) {
@@ -160,7 +165,7 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         }
     }
 
-    //prevent block from being destroyed // Dupe fix
+    // prevent block from being destroyed // Dupe fix
     @EventHandler(priority = EventPriority.HIGHEST)
     public void on(BlockBreakEvent e) {
         if (activeBlocks.contains(e.getBlock())) {
@@ -168,7 +173,7 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         }
     }
 
-    //prevent Entities from destroying blocks // Dupe fix
+    // prevent Entities from destroying blocks // Dupe fix
     @EventHandler(priority = EventPriority.HIGHEST)
     public void on(EntityExplodeEvent e) {
         if (e.isCancelled()) {
@@ -198,8 +203,9 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         } else if (!e.isSneaking() && active) {
             this.active.remove(p);
             cooldowns.put(p, M.ms() + getConfig().cooldown);
-            p.playSound(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 10.0f);
-            p.playSound(p.getLocation(), Sound.BLOCK_SCULK_CATALYST_BREAK, 1.0f, 0.81f);
+            SoundPlayer sp = SoundPlayer.of(p);
+            sp.play(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 10.0f);
+            sp.play(p.getLocation(), Sound.BLOCK_SCULK_CATALYST_BREAK, 1.0f, 0.81f);
         }
     }
 
@@ -208,11 +214,19 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
             return false;
         }
 
+        if(!block.getWorld()
+                .getNearbyEntities(block.getLocation()
+                        .add(.5, .5, .5), .5, .5, .5, entity ->
+                        entity instanceof ItemFrame || entity instanceof Painting).isEmpty())
+            return false;
+
+
         J.s(() -> {
             block.setBlockData(BLOCK);
             activeBlocks.add(block);
         });
-        block.getWorld().playSound(block.getLocation(), Sound.BLOCK_DEEPSLATE_PLACE, 1.0f, 1.0f);
+        SoundPlayer spw = SoundPlayer.of(block.getWorld());
+        spw.play(block.getLocation(), Sound.BLOCK_DEEPSLATE_PLACE, 1.0f, 1.0f);
         if (getConfig().showParticles) {
 
             vfxCuboidOutline(block, Particle.REVERSE_PORTAL);
@@ -230,7 +244,8 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
         J.s(() -> {
             block.setBlockData(AIR);
             activeBlocks.remove(block);
-            block.getWorld().playSound(block.getLocation(), Sound.BLOCK_DEEPSLATE_BREAK, 1.0f, 1.0f);
+            SoundPlayer spw = SoundPlayer.of(block.getWorld());
+            spw.play(block.getLocation(), Sound.BLOCK_DEEPSLATE_BREAK, 1.0f, 1.0f);
         });
         if (getConfig().showParticles) {
             vfxCuboidOutline(block, Particles.ENCHANTMENT_TABLE);
@@ -258,11 +273,9 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
                     final var world = i.getWorld();
                     final var location = i.getLocation();
 
-
-                    J.s(() -> {
-                        world.playSound(location, Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 10.0f);
-                        world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1.0f, 0.81f);
-                    });
+                    SoundPlayer spw = SoundPlayer.of(world);
+                    spw.play(location, Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 10.0f);
+                    spw.play(location, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1.0f, 0.81f);
 
                     return availablePower;
                 }
@@ -280,7 +293,6 @@ public class ArchitectFoundation extends SimpleAdaptation<ArchitectFoundation.Co
 
         return cooldowns.containsKey(i);
     }
-
 
     @Override
     public boolean isEnabled() {

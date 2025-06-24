@@ -19,6 +19,7 @@
 package com.volmit.adapt;
 
 import art.arcane.amulet.io.FolderWatcher;
+import com.jeff_media.customblockdata.CustomBlockData;
 import com.volmit.adapt.api.advancement.AdvancementManager;
 import com.volmit.adapt.api.data.WorldData;
 import com.volmit.adapt.api.potion.BrewingManager;
@@ -29,7 +30,8 @@ import com.volmit.adapt.api.version.Version;
 import com.volmit.adapt.api.world.AdaptServer;
 import com.volmit.adapt.content.gui.SkillsGui;
 import com.volmit.adapt.content.protector.*;
-import com.volmit.adapt.nms.GlowingEntities;
+import com.volmit.adapt.util.redis.RedisSync;
+import fr.skytasul.glowingentities.GlowingEntities;
 import com.volmit.adapt.util.*;
 import com.volmit.adapt.util.collection.KList;
 import com.volmit.adapt.util.collection.KMap;
@@ -79,6 +81,8 @@ public class Adapt extends VolmitPlugin {
 
     @Getter
     private AdvancementManager manager;
+    @Getter
+    private RedisSync redisSync;
 
 
     private final KList<Runnable> postShutdown = new KList<>();
@@ -98,6 +102,9 @@ public class Adapt extends VolmitPlugin {
     @Override
     public void onLoad() {
         manager = new AdvancementManager();
+        if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
+            WorldGuardProtector.registerFlag();
+        }
     }
 
     @Override
@@ -115,7 +122,9 @@ public class Adapt extends VolmitPlugin {
         if (AdaptConfig.get().isUseSql()) {
             sqlManager.establishConnection();
         }
+        redisSync = new RedisSync();
         startSim();
+        CustomBlockData.registerListener(this);
         registerListener(new BrewingManager());
         registerListener(Version.get());
         setupMetrics();
@@ -169,6 +178,7 @@ public class Adapt extends VolmitPlugin {
         manager.disable();
         MaterialValue.save();
         WorldData.stop();
+        CustomModel.clear();
     }
 
 
@@ -211,7 +221,7 @@ public class Adapt extends VolmitPlugin {
 
     private void setupMetrics() {
         if (AdaptConfig.get().isMetrics()) {
-            new Metrics(this, 13412);
+            new Metrics(this, 24221);
         }
     }
 
@@ -228,15 +238,17 @@ public class Adapt extends VolmitPlugin {
     }
 
     public static KList<Object> initialize(String s, Class<? extends Annotation> slicedClass) {
-        JarScanner js = new JarScanner(instance.jar(), s);
+        JarScanner js = new JarScanner(instance.getFile(), s);
         KList<Object> v = new KList<>();
         J.attempt(js::scan);
         for (Class<?> i : js.getClasses()) {
             if (slicedClass == null || i.isAnnotationPresent(slicedClass)) {
                 try {
+                    Adapt.verbose("Found class: " + i.getName());
                     v.add(i.getDeclaredConstructor().newInstance());
-                } catch (Throwable ignored) {
-
+                } catch (Throwable e) {
+                    Adapt.verbose("Failed to load class: " + i.getName());
+                    e.printAsStrings().forEach(Adapt::verbose);
                 }
             }
         }

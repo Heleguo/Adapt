@@ -29,7 +29,7 @@ import com.volmit.adapt.util.C;
 import com.volmit.adapt.util.Form;
 import com.volmit.adapt.util.J;
 import com.volmit.adapt.util.Localizer;
-import com.volmit.adapt.util.reflect.enums.Particles;
+import com.volmit.adapt.util.reflect.registries.Particles;
 import lombok.NoArgsConstructor;
 import org.bukkit.*;
 import org.bukkit.block.Biome;
@@ -240,8 +240,8 @@ public class SkillDiscovery extends SimpleSkill<SkillDiscovery.Config> {
     }
 
     public void seeBiome(Player p, Biome e) {
-        Discovery<Biome> d = getPlayer(p).getData().getSeenBiomes();
-        if (d.isNewDiscovery(e)) {
+        Discovery<String> d = getPlayer(p).getData().getSeenBiomes();
+        if (d.isNewDiscovery(e.getKey().toString())) {
             xp(p, getConfig().discoverBiomeXP);
         }
     }

@@ -27,7 +27,8 @@ import com.volmit.adapt.api.data.WorldData;
 import com.volmit.adapt.api.value.MaterialValue;
 import com.volmit.adapt.api.xp.XP;
 import com.volmit.adapt.util.J;
-import com.volmit.adapt.util.reflect.enums.PotionTypes;
+import com.volmit.adapt.util.SoundPlayer;
+import com.volmit.adapt.util.reflect.registries.PotionTypes;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -55,8 +56,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import static com.volmit.adapt.util.reflect.enums.Particles.ENCHANTMENT_TABLE;
-import static com.volmit.adapt.util.reflect.enums.Particles.REDSTONE;
+import static com.volmit.adapt.util.reflect.registries.Particles.ENCHANTMENT_TABLE;
+import static com.volmit.adapt.util.reflect.registries.Particles.REDSTONE;
 import static org.bukkit.potion.PotionType.*;
 import static xyz.xenondevs.particle.utils.MathUtils.RANDOM;
 
@@ -213,7 +214,7 @@ public interface Component {
 
     default void addPotionStacks(Player p, PotionEffectType potionEffect, int amplifier, int duration, boolean overlap) {
         List<PotionEffect> activeEffects = new ArrayList<>(p.getActivePotionEffects());
-
+        SoundPlayer sp = SoundPlayer.of(p);
         for (PotionEffect activeEffect : activeEffects) {
             if (activeEffect.getType() == potionEffect) {
                 if (!overlap) {
@@ -224,7 +225,7 @@ public interface Component {
                 int newAmplifier = Math.max(activeEffect.getAmplifier(), amplifier);
                 p.removePotionEffect(potionEffect);
                 p.addPotionEffect(new PotionEffect(potionEffect, newDuration, newAmplifier));
-                p.playSound(p.getLocation(), Sound.ENTITY_IRON_GOLEM_STEP, 0.25f, 0.25f);
+                sp.play(p.getLocation(), Sound.ENTITY_IRON_GOLEM_STEP, 0.25f, 0.25f);
                 return;
             }
         }
@@ -237,7 +238,7 @@ public interface Component {
             }
             J.s(() -> {
                 p.addPotionEffect(new PotionEffect(potionEffect, duration, amplifier));
-                p.playSound(p.getLocation(), Sound.ENTITY_IRON_GOLEM_STEP, 0.25f, 0.25f);
+                sp.play(p.getLocation(), Sound.ENTITY_IRON_GOLEM_STEP, 0.25f, 0.25f);
             });
         });
 
@@ -805,7 +806,8 @@ public interface Component {
 
         if (dm.getDamage() > is.getType().getMaxDurability()) {
             p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
-            p.getWorld().playSound(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+            SoundPlayer spw = SoundPlayer.of(p.getWorld());
+            spw.play(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
             return;
         }
 
@@ -830,7 +832,8 @@ public interface Component {
 
         if (dm.getDamage() > is.getType().getMaxDurability()) {
             p.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
-            p.getWorld().playSound(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+            SoundPlayer spw = SoundPlayer.of(p.getWorld());
+            spw.play(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
             return;
         }
 

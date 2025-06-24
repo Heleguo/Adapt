@@ -27,7 +27,7 @@ import art.arcane.chrono.ChronoLatch;
 import com.volmit.adapt.Adapt;
 import com.volmit.adapt.util.collection.KList;
 import com.volmit.adapt.util.collection.KMap;
-import com.volmit.adapt.util.reflect.enums.Materials;
+import com.volmit.adapt.util.reflect.registries.Materials;
 import it.unimi.dsi.fastutil.ints.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -79,6 +79,8 @@ public class B {
                 JUNGLE_SAPLING,
                 BIRCH_SAPLING,
                 SPRUCE_SAPLING,
+                Materials.CHERRY_SAPLING,
+                Materials.PALE_OAK_SAPLING,
                 OAK_SAPLING,
                 ORANGE_TULIP,
                 PINK_TULIP,

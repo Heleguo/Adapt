@@ -20,8 +20,8 @@ package com.volmit.adapt.content.adaptation.agility;
 
 import com.volmit.adapt.api.adaptation.SimpleAdaptation;
 import com.volmit.adapt.util.*;
-import com.volmit.adapt.util.reflect.enums.Particles;
-import com.volmit.adapt.util.reflect.enums.PotionEffectTypes;
+import com.volmit.adapt.util.reflect.registries.Particles;
+import com.volmit.adapt.util.reflect.registries.PotionEffectTypes;
 import lombok.NoArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -77,7 +77,8 @@ public class AgilitySuperJump extends SimpleAdaptation<AgilitySuperJump.Config> 
         }
 
         if (e.isSneaking() && p.isOnGround()) {
-            p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.3f, 0.35f);
+            SoundPlayer sp = SoundPlayer.of(p);
+            sp.play(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.3f, 0.35f);
         }
     }
 
@@ -114,8 +115,9 @@ public class AgilitySuperJump extends SimpleAdaptation<AgilitySuperJump.Config> 
                     lastJump.remove(p);
                 }
                 if (p.getLocation().getBlock().getType() != Material.LADDER && velocity.getY() > jumpVelocity && p.isOnline()) {
-                    p.getWorld().playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.25f, 0.7f);
-                    p.getWorld().playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.25f, 1.7f);
+                    SoundPlayer spw = SoundPlayer.of(p.getWorld());
+                    spw.play(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.25f, 0.7f);
+                    spw.play(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1.25f, 1.7f);
                     if (getConfig().showParticles) {
                         p.getWorld().spawnParticle(Particles.BLOCK_CRACK, p.getLocation().clone().add(0, 0.3, 0), 15, 0.1, 0.8, 0.1, 0.1, p.getLocation().getBlock().getRelative(BlockFace.DOWN).getBlockData());
                     }

@@ -9,17 +9,20 @@ import com.volmit.adapt.Adapt;
 import com.volmit.adapt.AdaptConfig;
 import com.volmit.adapt.api.skill.Skill;
 import com.volmit.adapt.api.world.AdaptPlayer;
-import com.volmit.adapt.util.IO;
 import com.volmit.adapt.util.J;
-import com.volmit.adapt.util.JSONObject;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.volmit.adapt.Adapt.instance;
 
 public class AdvancementManager {
     private final AdvancementMain main;
     private final Map<String, Advancement> advancements;
+    private final AtomicBoolean loaded = new AtomicBoolean(true);
+    private final AtomicBoolean enabled = new AtomicBoolean(false);
 
     public AdvancementManager() {
         main = new AdvancementMain(instance);
@@ -33,25 +36,29 @@ public class AdvancementManager {
 
     public void grant(AdaptPlayer player, String key, boolean toast) {
         player.getData().ensureGranted(key);
+        Player p = player.getPlayer();
+        if (!AdaptConfig.get().isAdvancements() || !enabled.get() || p == null || !p.isOnline()) return;
         Advancement advancement = advancements.get(key);
         try {
-            J.s(() -> advancement.grant(player.getPlayer(), true), 5);
+            J.s(() -> {
+                if (!p.isOnline()) return;
+                advancement.grant(player.getPlayer(), true);
+            }, 5);
         } catch (Exception e) {
             Adapt.error("Failed to grant advancement " + key);
         }
 
         if (toast) {
-            if (player.getPlayer() != null) {
-                try {
-                    advancement.displayToastToPlayer(player.getPlayer());
-                } catch (Exception e) {
-                    Adapt.error("Failed to grant advancement " + key + " Reattaching!");
-                }
+            try {
+                advancement.displayToastToPlayer(p);
+            } catch (Exception e) {
+                Adapt.error("Failed to grant advancement " + key + " Reattaching!");
             }
         }
     }
 
     public void unlockExisting(AdaptPlayer player) {
+        if (!AdaptConfig.get().isAdvancements() || !enabled.get()) return;
         J.s(() -> {
             instance.getAdaptServer()
                     .getSkillRegistry()
@@ -77,6 +84,11 @@ public class AdvancementManager {
     }
 
     public void enable() {
+        if (loaded.compareAndSet(false, true))
+            main.load();
+
+        if (!AdaptConfig.get().isAdvancements() || !enabled.compareAndSet(false, true))
+            return;
         if (AdaptConfig.get().isUseSql()) {
             AdaptConfig.SqlSettings sql = AdaptConfig.get().getSql();
             main.enableMySQL(sql.getUsername(), sql.getPassword(), sql.getDatabase(), sql.getHost(), sql.getPort(), sql.getPoolSize(), sql.getConnectionTimeout());
@@ -105,5 +117,7 @@ public class AdvancementManager {
 
     public void disable() {
         main.disable();
+        enabled.set(false);
+        loaded.set(false);
     }
 }

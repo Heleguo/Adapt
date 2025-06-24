@@ -35,6 +35,7 @@ import com.volmit.adapt.content.item.ExperienceOrb;
 import com.volmit.adapt.content.item.KnowledgeOrb;
 import com.volmit.adapt.util.*;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -50,22 +51,22 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class AdaptServer extends TickedObject {
-    private final Map<Player, AdaptPlayer> players;
+    private final ReentrantLock clearLock = new ReentrantLock();
+    private final Map<UUID, AdaptPlayer> players = new ConcurrentHashMap<>();
     @Getter
-    private final List<SpatialXP> spatialTickets;
+    private final List<SpatialXP> spatialTickets = new ArrayList<>();
     @Getter
-    private SkillRegistry skillRegistry;
+    private final SkillRegistry skillRegistry = new SkillRegistry();
     @Getter
     private AdaptServerData data = new AdaptServerData();
 
     public AdaptServer() {
         super("core", UUID.randomUUID().toString(), 1000);
-        spatialTickets = new ArrayList<>();
-        players = new HashMap<>();
         load();
-        skillRegistry = new SkillRegistry();
 
         Bukkit.getOnlinePlayers().forEach(this::join);
     }
@@ -112,12 +113,15 @@ public class AdaptServer extends TickedObject {
 
     public void join(Player p) {
         AdaptPlayer a = new AdaptPlayer(p);
-        players.put(p, a);
+        players.put(p.getUniqueId(), a);
         a.loggedIn();
     }
 
-    public void quit(Player p) {
-        Optional.ofNullable(players.remove(p)).ifPresent(AdaptPlayer::unregister);
+    public void quit(UUID p) {
+        AdaptPlayer a = players.get(p);
+        if (a == null) return;
+        a.unregister();
+        players.remove(p);
     }
 
     @Override
@@ -128,7 +132,7 @@ public class AdaptServer extends TickedObject {
         super.unregister();
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void on(ProjectileLaunchEvent e) {
         if (e.getEntity() instanceof Snowball s && e.getEntity().getShooter() instanceof Player p) {
             KnowledgeOrb.Data data = KnowledgeOrb.get(s.getItem());
@@ -145,10 +149,9 @@ public class AdaptServer extends TickedObject {
                     .build().play(getPlayer(p));
                 getPlayer(p).getNot().queue(AdvancementNotification.builder()
                     .icon(Material.BOOK)
+                    .model(CustomModel.get(Material.BOOK, "snippets", "gui", "knowledge"))
                     .title(C.GRAY + "+ " + C.WHITE + data.getKnowledge() + " " + skill.getDisplayName() + " Knowledge")
                     .build());
-                e.setCancelled(false);
-                e.getEntity().setVelocity(e.getEntity().getVelocity().multiply(1000));
             } else {
                 ExperienceOrb.Data datax = ExperienceOrb.get(s.getItem());
                 if (datax != null) {
@@ -161,34 +164,33 @@ public class AdaptServer extends TickedObject {
                         .sound(Sound.ENTITY_SHULKER_OPEN)
                         .volume(1f).pitch(1.655f)
                         .build().play(getPlayer(p));
-                    e.setCancelled(false);
-                    e.getEntity().setVelocity(e.getEntity().getVelocity().multiply(1000));
                 }
             }
         }
 
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void on(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         join(p);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void on(PlayerQuitEvent e) {
         Player p = e.getPlayer();
-        quit(p);
+        quit(p.getUniqueId());
     }
 
     @EventHandler
     public void on(CraftItemEvent e) {
         if (e.getWhoClicked() instanceof Player p) {
+            SoundPlayer sp = SoundPlayer.of(p);
             for (Skill<?> i : getSkillRegistry().getSkills()) {
                 for (Adaptation<?> j : i.getAdaptations()) {
                     if (j.isAdaptationRecipe(e.getRecipe()) && !j.hasAdaptation(p)) {
                         Adapt.actionbar(p, C.RED + "Requires " + j.getDisplayName() + C.RED + " from " + i.getDisplayName());
-                        p.playSound(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 1.8f);
+                        sp.play(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 1.8f);
                         e.setCancelled(true);
                     }
                 }
@@ -199,12 +201,19 @@ public class AdaptServer extends TickedObject {
     @Override
     public void onTick() {
         synchronized (spatialTickets) {
-            for (int i = 0; i < spatialTickets.size(); i++) {
-                if (M.ms() > spatialTickets.get(i).getMs()) {
-                    spatialTickets.remove(i);
-                }
-            }
+            spatialTickets.removeIf(ticket -> M.ms() > ticket.getMs());
         }
+
+        J.a(() -> {
+            if (!clearLock.tryLock())
+                return;
+
+            try {
+                players.values().removeIf(AdaptPlayer::shouldUnload);
+            } finally {
+                clearLock.unlock();
+            }
+        });
     }
 
     public PlayerData peekData(UUID player) {
@@ -231,8 +240,18 @@ public class AdaptServer extends TickedObject {
         return new PlayerData();
     }
 
+    @NonNull
+    public Optional<PlayerData> getPlayerData(@NonNull UUID uuid) {
+        return Optional.ofNullable(players.get(uuid))
+                .map(AdaptPlayer::getData);
+    }
+
     public AdaptPlayer getPlayer(Player p) {
-        return players.get(p);
+        return players.computeIfAbsent(p.getUniqueId(), player -> {
+            Adapt.warn("Failed to find AdaptPlayer for " + p.getName() + " (" + p.getUniqueId() + ")");
+            Adapt.warn("Loading new AdaptPlayer...");
+            return new AdaptPlayer(p);
+        });
     }
 
     public void openSkillGUI(Skill<?> skill, Player p) {

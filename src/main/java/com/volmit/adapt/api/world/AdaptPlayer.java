@@ -18,7 +18,6 @@
 
 package com.volmit.adapt.api.world;
 
-import com.google.gson.Gson;
 import com.volmit.adapt.Adapt;
 import com.volmit.adapt.AdaptConfig;
 import com.volmit.adapt.api.notification.AdvancementNotification;
@@ -30,6 +29,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.SneakyThrows;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -51,6 +51,7 @@ public class AdaptPlayer extends TickedObject {
     private long lastloc;
     private Vector velocity;
     private Location lastpos;
+    private long lastSeen;
 
     public AdaptPlayer(Player p) {
         super("players", p.getUniqueId().toString(), 50);
@@ -63,6 +64,7 @@ public class AdaptPlayer extends TickedObject {
         advancementHandler = new AdvancementHandler(this);
         speed = new RollingSequence(7);
         lastloc = M.ms();
+        lastSeen = M.ms();
         velocity = new Vector();
     }
 
@@ -123,9 +125,10 @@ public class AdaptPlayer extends TickedObject {
     @SneakyThrows
     private void save() {
         UUID uuid = player.getUniqueId();
-        String data = new Gson().toJson(this.data);
+        String data = this.data.toJson();
 
         if (AdaptConfig.get().isUseSql()) {
+            Adapt.instance.getRedisSync().publish(uuid, data);
             Adapt.instance.getSqlManager().updateData(uuid, data);
         } else {
             IO.writeAll(getPlayerDataFile(uuid), new JSONObject(data).toString(4));
@@ -135,10 +138,11 @@ public class AdaptPlayer extends TickedObject {
     @SneakyThrows
     private void unSave() {
         UUID uuid = player.getUniqueId();
-        String data = new Gson().toJson(new PlayerData());
+        String data = new PlayerData().toJson();
         unregister();
 
         if (AdaptConfig.get().isUseSql()) {
+            Adapt.instance.getRedisSync().publish(uuid, data);
             Adapt.instance.getSqlManager().updateData(uuid, data);
         } else {
             IO.writeAll(getPlayerDataFile(uuid), new JSONObject(data).toString(4));
@@ -177,12 +181,27 @@ public class AdaptPlayer extends TickedObject {
         });
     }
 
+    public boolean shouldUnload() {
+        if (player.isOnline()) {
+            lastSeen = M.ms();
+            return false;
+        }
+
+        return lastSeen + 60_000 < System.currentTimeMillis();
+    }
+
     private PlayerData loadPlayerData() {
         boolean upload = false;
         if (AdaptConfig.get().isUseSql()) {
+            var opt = Adapt.instance.getRedisSync().cachedData(player.getUniqueId());
+            if (opt.isPresent()) {
+                Adapt.verbose("Using cached data for player: " + player.getUniqueId());
+                return opt.get();
+            }
+
             String sqlData = Adapt.instance.getSqlManager().fetchData(player.getUniqueId());
             if (sqlData != null) {
-                return new Gson().fromJson(sqlData, PlayerData.class);
+                return PlayerData.fromJson(sqlData);
             }
             upload = true;
         }
@@ -194,7 +213,7 @@ public class AdaptPlayer extends TickedObject {
                 if (upload) {
                     Adapt.instance.getSqlManager().updateData(player.getUniqueId(), text);
                 }
-                return new Gson().fromJson(text, PlayerData.class);
+                return PlayerData.fromJson(text);
             } catch (Throwable ignored) {
                 Adapt.verbose("Failed to load player data for " + player.getName() + " (" + player.getUniqueId() + ")");
             }
@@ -276,6 +295,7 @@ public class AdaptPlayer extends TickedObject {
     }
 
     public void loggedIn() {
+        lastSeen = M.ms();
         if (AdaptConfig.get().isLoginBonus()) {
             long timeGone = M.ms() - getData().getLastLogin();
             boolean first = getData().getLastLogin() == 0;
@@ -286,9 +306,12 @@ public class AdaptPlayer extends TickedObject {
             }
             double boostAmount = M.lerp(0.1, 0.25, (double) boostTime / (double) TimeUnit.HOURS.toMillis(1));
             getData().globalXPMultiplier(boostAmount, (int) boostTime);
+            if (!AdaptConfig.get().isWelcomeMessage())
+                return;
             getNot().queue(AdvancementNotification.builder()
                     .title(first ? Localizer.dLocalize("snippets", "gui", "welcome") : Localizer.dLocalize("snippets", "gui", "welcomeback"))
                     .description("+" + C.GREEN + Form.pc(boostAmount, 0) + C.GRAY + " " + Localizer.dLocalize("snippets", "gui", "xpbonusfortime") + " " + C.AQUA + Form.duration(boostTime, 0))
+                    .model(CustomModel.get(Material.DIAMOND, "snippets", "gui", first ? "welcome" : "welcomeback"))
                     .build());
         }
     }

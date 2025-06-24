@@ -3,6 +3,7 @@ package com.volmit.adapt.command;
 import com.volmit.adapt.Adapt;
 import com.volmit.adapt.AdaptConfig;
 import com.volmit.adapt.util.J;
+import com.volmit.adapt.util.SoundPlayer;
 import com.volmit.adapt.util.command.FConst;
 import com.volmit.adapt.util.decree.DecreeExecutor;
 import com.volmit.adapt.util.decree.DecreeOrigin;
@@ -18,7 +19,7 @@ public class CommandDebug implements DecreeExecutor {
     @Decree(description = "Toggle verbose mode")
     public void verbose() {
         if (!sender().hasPermission("adapt.idontknowwhatimdoingiswear")) {
-            sender().sendMessage("You lack the Permission 'adapt.idontknowwhatimdoingiswear'");
+            FConst.error("You lack the Permission 'adapt.idontknowwhatimdoingiswear'").send(sender());
             return;
         }
 
@@ -29,7 +30,7 @@ public class CommandDebug implements DecreeExecutor {
     @Decree(name = "pap", description = "Generate Perms for Adaptations!")
     public void pap() {
         if (!sender().hasPermission("adapt.idontknowwhatimdoingiswear")) {
-            sender().sendMessage("You lack the Permission 'adapt.idontknowwhatimdoingiswear'");
+            FConst.error("You lack the Permission 'adapt.idontknowwhatimdoingiswear'").send(sender());
             return;
         }
 
@@ -46,7 +47,7 @@ public class CommandDebug implements DecreeExecutor {
     @Decree(name = "psp", description = "Generate Perms for Skills!")
     public void psp() {
         if (!sender().hasPermission("adapt.idontknowwhatimdoingiswear")) {
-            sender().sendMessage("You lack the Permission 'adapt.idontknowwhatimdoingiswear'");
+            FConst.error("You lack the Permission 'adapt.idontknowwhatimdoingiswear'").send(sender());
             return;
         }
 
@@ -63,7 +64,7 @@ public class CommandDebug implements DecreeExecutor {
     @Decree(name = "particle", origin = DecreeOrigin.PLAYER, description = "Summon a particle in front of you for testing!")
     public void particle(@Param Particle particle) {
         if (!sender().hasPermission("adapt.idontknowwhatimdoingiswear")) {
-            sender().sendMessage("You lack the Permission 'adapt.idontknowwhatimdoingiswear'");
+            FConst.error("You lack the Permission 'adapt.idontknowwhatimdoingiswear'").send(sender());
             return;
         }
 
@@ -74,10 +75,11 @@ public class CommandDebug implements DecreeExecutor {
     @Decree(name = "particle", origin = DecreeOrigin.PLAYER, description = "Summon a particle in front of you for testing!")
     public void particle(@Param Sound sound) {
         if (!sender().hasPermission("adapt.idontknowwhatimdoingiswear")) {
-            sender().sendMessage("You lack the Permission 'adapt.idontknowwhatimdoingiswear'");
+            FConst.error("You lack the Permission 'adapt.idontknowwhatimdoingiswear'").send(sender());
             return;
         }
 
-        player().playSound(player().getLocation(), sound, 1, 1);
+        SoundPlayer sp = SoundPlayer.of(player());
+        sp.play(player().getLocation(), sound, 1, 1);
     }
 }

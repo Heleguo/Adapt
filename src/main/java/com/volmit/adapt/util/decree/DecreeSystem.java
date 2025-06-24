@@ -20,10 +20,7 @@
 package com.volmit.adapt.util.decree;
 
 import com.volmit.adapt.Adapt;
-import com.volmit.adapt.util.C;
-import com.volmit.adapt.util.J;
-import com.volmit.adapt.util.RNG;
-import com.volmit.adapt.util.VolmitSender;
+import com.volmit.adapt.util.*;
 import com.volmit.adapt.util.collection.KList;
 import com.volmit.adapt.util.decree.virtual.VirtualDecreeCommand;
 import org.bukkit.Sound;
@@ -141,12 +138,14 @@ public interface DecreeSystem extends CommandExecutor, TabCompleter {
     @Nullable
     @Override
     default List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        Adapt.verbose("Received Tab Complete from %s for %s".formatted(sender.getName(), "/" + alias + String.join(" ", args)));
         List<String> enhanced = new ArrayList<>(List.of(args));
         KList<String> v = getRoot().tabComplete(enhanced, enhanced.toString(" "));
         v.removeDuplicates();
 
-        if (sender instanceof Player) {
-            ((Player) sender).playSound(((Player) sender).getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.25f, RNG.r.f(0.125f, 1.95f));
+        if (sender instanceof Player p) {
+            SoundPlayer sp = SoundPlayer.of(p);
+            sp.play(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.25f, RNG.r.f(0.125f, 1.95f));
         }
 
         return v;
@@ -154,6 +153,7 @@ public interface DecreeSystem extends CommandExecutor, TabCompleter {
 
     @Override
     default boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        Adapt.verbose("Received Command from %s: /%s".formatted(sender.getName(), label + String.join(" ", args)));
         if (!sender.hasPermission("adapt.main")) {
             sender.sendMessage("You lack the Permission 'adapt.main'");
             return true;
@@ -161,16 +161,18 @@ public interface DecreeSystem extends CommandExecutor, TabCompleter {
 
         J.a(() -> {
             if (!call(new VolmitSender(sender), args)) {
-                if (sender instanceof Player) {
-                    ((Player) sender).playSound(((Player) sender).getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 0.77f, 0.25f);
-                    ((Player) sender).playSound(((Player) sender).getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.2f, 0.45f);
+                if (sender instanceof Player p) {
+                    SoundPlayer sp = SoundPlayer.of(p);
+                    sp.play(p.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 0.77f, 0.25f);
+                    sp.play(p.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 0.2f, 0.45f);
                 }
 
                 sender.sendMessage(C.RED + "Unknown Adapt Command");
             } else {
-                if (sender instanceof Player) {
-                    ((Player) sender).playSound(((Player) sender).getLocation(), Sound.BLOCK_AMETHYST_CLUSTER_BREAK, 0.77f, 1.65f);
-                    ((Player) sender).playSound(((Player) sender).getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 0.125f, 2.99f);
+                if (sender instanceof Player p) {
+                    SoundPlayer sp = SoundPlayer.of(p);
+                    sp.play(p.getLocation(), Sound.BLOCK_AMETHYST_CLUSTER_BREAK, 0.77f, 1.65f);
+                    sp.play(p.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 0.125f, 2.99f);
                 }
             }
         });
