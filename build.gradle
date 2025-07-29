@@ -167,7 +167,7 @@ allprojects {
         compileOnly "com.github.angeschossen:ChestProtectAPI:3.9.1"
         compileOnly "com.github.TechFortress:GriefPrevention:16.18.1"
         implementation 'xyz.xenondevs:particle:1.8.4'
-        implementation "com.frengor:ultimateadvancementapi-shadeable:2.5.1"
+        implementation "com.frengor:ultimateadvancementapi-shadeable:2.6.0"
         implementation 'com.jeff-media:custom-block-data:2.2.3'
         compileOnly 'com.griefdefender:api:2.1.0-SNAPSHOT'
         compileOnly 'io.netty:netty-all:4.1.68.Final'
